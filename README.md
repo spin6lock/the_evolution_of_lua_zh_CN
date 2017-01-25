@@ -1,2 +1,2 @@
-# the_evolution_of_lua_zh_CN
-translation of the papar "the evolution of lua"
+# the evolution of Lua 翻译
+这是论文the evolution of Lua的翻译
