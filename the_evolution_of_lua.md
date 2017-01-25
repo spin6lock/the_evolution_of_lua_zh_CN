@@ -533,7 +533,7 @@ Lua是在大家的帮助下成长起来的。Tecgraf的所有人都以不同形�
 最后，我们感谢PUC-Rio，IMPA和CNPq对我们Lua工作一如既往的支持，以及FINEP和微软研究院对数个Lua相关项目的支持。
 
 相关文献：
-
+```
 [1] The computer language shootout benchmarks. http:
 //shootout.alioth.debian.org/.
 [2] Lua projects. http://www.lua.org/uses.html.
@@ -656,3 +656,4 @@ Delmar Thomson Learning, 2005.
 languages: an annotated bibliography. SIGPLAN Notices,
 35(6):26–36, 2000.
 [44] A. Varanese. Game Scripting Mastery. Premier Press, 2002.
+```
