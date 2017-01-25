@@ -43,7 +43,7 @@ Lua 1.1最早以源码方式在ftp提供下载。这远在开源运动兴盛蓬�
 
 灵活语义的一个目标是允许table作为对象和类的基础。为了实现这个目标，我们需要实现table的继承。另一个目标是将userdata变成应用数据的天然代理，可以作为函数参数而不只是一个句柄。我们希望能够索引userdata，就好像他们只是一个table，可供调用他们身上的方法。这让Lua可以更为自然的实现自己的主要设计目标：通过提供脚本访问到应用服务和数据，从而扩展应用。我们决定实现一套fallback机制，让Lua把未定义行为交给程序员处理，而不是直接在语言本身实现这些特性。
 
-在Lua2.1的时候，我们提供了fallback机制，支持以下行为：table索引，算术操作符，字符串拼接，顺序比较，函数调用。当这些操作应用到“错误”的类型上，对应的fallback就会被调用到，允许程序员决定Lua如何处理。table索引fallback允许userdata和其它值类型表现的跟表一样。我们也定义了当Key不在table时的fallback，从而实现多种形式的继承（通过委托）。为了完善面向对象编程，我们添加了两个语法糖：function a:foo(…)就好比function a.foo(self,…)一样，以及a:foo(…)作为a.foo(a, …)的语法糖。在6.8节我们会讨论fallback的细节。
+在Lua2.1的时候，我们提供了fallback机制，支持以下行为：table索引，算术操作符，字符串拼接，顺序比较，函数调用。当这些操作应用到“错误”的类型上，对应的fallback就会被调用到，允许程序员决定Lua如何处理。table索引fallback允许userdata和其它值类型表现的跟表一样。我们也定义了当Key不在table时的fallback，从而实现多种形式的继承（通过委托）。为了完善面向对象编程，我们添加了两个语法糖：`function a:foo(…)`就好比`function a.foo(self,…)`一样，以及`a:foo(…)`作为`a.foo(a, …)`的语法糖。在6.8节我们会讨论fallback的细节。
 
 从Lua1.0开始，我们就提供了值类型的内省函数（introspective functions）：type，可以用来获取Lua值的类型；next，可以用来遍历一个table；以及nextvar，可以遍历全局环境。（正如第四章所述，这是为了实现类似SOL的类型检查）为了应付用户对完整调试设施的强烈需求，1995年12月发布的Lua2.2引入了一个debug API来获取运行中的函数信息。这个API为用户提供了以C语言编写自己的内省函数工具链的手段，比如编写自己的调试器和性能分析工具。debug API刚开始的时候相当简洁：debug库允许访问Lua的调用栈，访问当前执行的代码行行数，以及一个可以查找指定值的变量名的函数。根据M.Sc.的Tomas Gorham的工作，debug API在1996年5月发布的Lua2.4版本里得到了完善，提供了函数访问局部变量，提供了钩子在行数变化和函数调用时触发。
 
@@ -75,17 +75,19 @@ Lua2.1里引入的fallback机制，可以很好的支持灵活扩展的语义，
 
 2000年12月，Lua 4.0正式发布。正如上文所述，4.0的主要改变是完全可重入的API，为那些需要多份Lua state的应用而设计。因为改造API为完全可重入已经是主要改动，我们借此机会重新设计了API，依赖清晰的堆栈实现与C层的值交换。这是Reuben Thomas在2000年7月提出的。
 
-Lua 4同时引入了for语句，这是邮件列表中的日常话题和大部分Lua用户最想要的特性。我们早期没有引入for语句，是因为while循环更为一般化。但是，用户总是投诉忘记在while循环的尾部更新控制变量，从而引起死循环。而且，我们在好语法这一点上没有达成一致。我们觉得Modula语言的for语句限制性太大了，因为它既不能迭代table里的元素，也不能迭代文件里的行。C传统上的for循环也不适合Lua。基于Lua 3.1引入的闭包和匿名函数，我们决定使用高阶函数来实现迭代。所以，Lua 3.1提供了一个高阶函数来迭代table，可以对table的每一对键值对回调用户自定义函数。比如，要打印table t里面的每一个键值对，只需要写’foreach(t,print)’。
+Lua 4同时引入了for语句，这是邮件列表中的日常话题和大部分Lua用户最想要的特性。我们早期没有引入for语句，是因为while循环更为一般化。但是，用户总是投诉忘记在while循环的尾部更新控制变量，从而引起死循环。而且，我们在好语法这一点上没有达成一致。我们觉得Modula语言的for语句限制性太大了，因为它既不能迭代table里的元素，也不能迭代文件里的行。C传统上的for循环也不适合Lua。基于Lua 3.1引入的闭包和匿名函数，我们决定使用高阶函数来实现迭代。所以，Lua 3.1提供了一个高阶函数来迭代table，可以对table的每一对键值对回调用户自定义函数。比如，要打印table t里面的每一个键值对，只需要写`foreach(t,print)`。
 
 在Lua 4.0我们终于设计了一个for循环，它有两种方式：一个数字式的循环以及一个表遍历的循环（1997年10月由Michael Spalinski提出）。这两种方式覆盖了大部分常用应用环境；对于更一般化的循环，依然有while循环可供使用。要打印table t里的所有键值对，可以这样写：
 
+```lua
 for k, v in t do
   print(k, v)
 end
+```
 
 添加for循环只是一个很简单的一个改动，但它的确改变了Lua程序的外观。Roberto不得不重写了Programming in Lua草稿里的许多例子。Roberto在1998年开始写书了，但是他从来都没写完，因为Lua是一个不断变动的目标。随着Lua 4.0的发布，书里大部分内容需要改写，几乎所有的代码块都要重写了。
 
-Lua 4.0发布后，我们开始为Lua 4.1工作。在Lua 4.1版本，我们面临的主要挑战，大概是要不要支持、如何支持多线程吧，这在当时是一个大问题。随着Java的用户增长以及Pthreads的出现，很多程序员开始考虑多线程，将其作为编程语言的关键特性进行考量。但是，对于我们来说，Lua支持多线程需要考虑几个严肃的问题。首先，在C层面支持多线程就会用到非ANSI C的原语——尽管Pthread很流行，但仍然有很多平台（当时和现在）都缺乏这个库的支持。第二，更重要的是，我们不相信标准多线程模型：那个共享内存的抢占式并发模型。我们仍然认为，对于’a=a+1’都没有确定结果的语言，没人能写出正确的程序。
+Lua 4.0发布后，我们开始为Lua 4.1工作。在Lua 4.1版本，我们面临的主要挑战，大概是要不要支持、如何支持多线程吧，这在当时是一个大问题。随着Java的用户增长以及Pthreads的出现，很多程序员开始考虑多线程，将其作为编程语言的关键特性进行考量。但是，对于我们来说，Lua支持多线程需要考虑几个严肃的问题。首先，在C层面支持多线程就会用到非ANSI C的原语——尽管Pthread很流行，但仍然有很多平台（当时和现在）都缺乏这个库的支持。第二，更重要的是，我们不相信标准多线程模型：那个共享内存的抢占式并发模型。我们仍然认为，对于`a=a+1`都没有确定结果的语言，没人能写出正确的程序。
 
 对于Lua 4.1，我们开始用Lua的经典方式解决这些难题：我们只实现了一个简单的多栈共存的机制，我们称为threads（线程）。外部的库可以使用这些Lua线程来实现多线程，比如基于Pthreads来实现。同样的机制也能用来实现协程，一个协作式的、非抢占的多线程模型。2001年7月，Lua 4.1 alpha发布，带有额外的多线程和协程库支持；同时也引入了弱表，以及标志性的基于寄存器的虚拟机。我们一直很想用基于寄存器的虚拟机进行实验。
 
@@ -99,10 +101,12 @@ Lua 4.1 alpha发布后的第二天，John D.Ramsdell在邮件列表里开始了�
 
 将库函数放入table里面是一个巨大的冲击，因为这会影响到所有使用了至少一个库函数的程序。比如，老版本的strfind函数现在叫string.find(在string库里的find域，存储在叫string的table里)；openfile变成了io.open；sin变成了math.sin，诸如此类。为了让转换变的简单点，我们提供了一个兼容脚本，在里面定义了老函数去应用新函数：
 
+```lua
 strfind = string.find
 openfile = io.open
 sin = math.sin
 …
+```
 
 但是，将库打包到table里面去始终是一个大改动。2002年6月，当我们放出了带有这一改动的可工作版本时，我们放弃了’Lua 4.1’这个名字，并将其命名为’Lua 5.0 work0’。最终版本的进展从那时开始就相当稳定了，2003年4月，我们发布了Lua 5.0。这次发布让Lua的特性得以稳定下来，让Roberto可以完成他的新书了，新书在2003年12月发布。
 
@@ -126,19 +130,19 @@ Lua的类型系统是相对稳定的。很长时间里，Lua只有6个基本类�
 
 ### 6.2     Table
 
-Lua 1.1有三种语法来创建一个table：’@()’，’@[]’和’@{}’。最简单的形式是’@()’，用于创建一个空表。可以在创建时提供一个可选的长度参数，作为优化性能的提示信息。’@[]’这种形式是用来构建数组的，比如’@[2,4,9,16,25]’。在这种table里，key是隐式的从1开始的自然数。’@{}’这种形式是用来构造记录的，比如’@{name=“John”,age=35}’。这种table是键值对的集合，键是显式的字符串。一个table可以用这三种的其中一种方式构造，构造后可以动态修改，不因构造方式受限。此外，还能在构造列表和记录的时候提供用户函数调用，比如’@foo[]’或者’@foo{}'。这个语法是从SOL里继承的，是过程数据表述的表达式，Lua的一个主要特性(参见第二节)。语法是构建好table后，调用对应的函数，将构造好的table作为单参数传入函数。函数允许随意检查和修改table，但是函数的返回值会被忽略：table就是表达式的最终值。
+Lua 1.1有三种语法来创建一个table：`@()`，`@[]`和`@{}`。最简单的形式是`@()`，用于创建一个空表。可以在创建时提供一个可选的长度参数，作为优化性能的提示信息。`@[]`这种形式是用来构建数组的，比如`@[2,4,9,16,25]`。在这种table里，key是隐式的从1开始的自然数。`@{}`这种形式是用来构造记录的，比如`@{name=“John”,age=35}`。这种table是键值对的集合，键是显式的字符串。一个table可以用这三种的其中一种方式构造，构造后可以动态修改，不因构造方式受限。此外，还能在构造列表和记录的时候提供用户函数调用，比如`@foo[]`或者`@foo{}`。这个语法是从SOL里继承的，是过程数据表述的表达式，Lua的一个主要特性(参见第二节)。语法是构建好table后，调用对应的函数，将构造好的table作为单参数传入函数。函数允许随意检查和修改table，但是函数的返回值会被忽略：table就是表达式的最终值。
 
-Lua 2.1里，table创建的语法是统一的，并得到简化：开头的’@‘被移除了，唯一的构造方式是’{…}’。Lua 2.1也允许混合的构造方式，比如
+Lua 2.1里，table创建的语法是统一的，并得到简化：开头的`@`被移除了，唯一的构造方式是`{…}`。Lua 2.1也允许混合的构造方式，比如
 grades{8.5, 6.0, 9.2; name=“John”, major=“math”}
-数组的部分和记录的部分被分号分割开。最后，’foo{...}’变成了’foo({...})’的语法糖。也就是说，函数加上表构造器，变成了普通的函数调用。所以，函数需要显式返回table（或其他值）。从构造器里拿掉’@‘是一个平凡的改动，但它的确改变了语言的感觉，不仅仅是它的外观。改变语言观感的平凡改动不应该被忽视。
+数组的部分和记录的部分被分号分割开。最后，`foo{...}`变成了`foo({...})`的语法糖。也就是说，函数加上表构造器，变成了普通的函数调用。所以，函数需要显式返回table（或其他值）。从构造器里拿掉`@`是一个平凡的改动，但它的确改变了语言的感觉，不仅仅是它的外观。改变语言观感的平凡改动不应该被忽视。
 
-然而，这个语法的简化和table构造器的语义改变带来了副作用。Lua 1.1里，’=‘用来判断相等。Lua 2.1里table构造器统一之后，表达式’{a=3}’变成有歧义了，因为它可以表示(“a”, 3)这个键值对，或者(1, b)，其中b是表达式a=3的值。为了解决二义性，Lua 2.1用’==‘取代了’=‘。改动后，’{a=3}'表示一个含有键值对(“a”, 3)的table，而’{a==3}’表示(1, b)。
+然而，这个语法的简化和table构造器的语义改变带来了副作用。Lua 1.1里，`=`用来判断相等。Lua 2.1里table构造器统一之后，表达式`{a=3}`变成有歧义了，因为它可以表示(“a”, 3)这个键值对，或者(1, b)，其中b是表达式a=3的值。为了解决二义性，Lua 2.1用`==`取代了`=`。改动后，`{a=3}`表示一个含有键值对(“a”, 3)的table，而`{a==3}`表示(1, b)。
 
-这些改变让Lua 2.1变得不兼容Lua 1.1了（所以大版本号也变了）。但是，因为那时候实际上所有的Lua用户都是Tecgraf的，这并不是一个致命的改变：现存的代码可以经过我们编写的特定工具进行转换。table构造器的语法从那时起几乎不变了，唯一的例外是Lua 3.1引入的：记录的key可以用上任意表达式了，比如’{[10*x+f(y)]=47}’。尤其是这一改动允许了key为任意的字符串了，包括保留字和带有空格的字符串。因此，’{function=1}’是无效的，因为’function’是一个保留字，但是’{[“function”]=1}’是有效的。从Lua 5.0开始，也可以自由的混合数组部分和记录部分了，因此没有必要再在table构造器里使用分号了。
+这些改变让Lua 2.1变得不兼容Lua 1.1了（所以大版本号也变了）。但是，因为那时候实际上所有的Lua用户都是Tecgraf的，这并不是一个致命的改变：现存的代码可以经过我们编写的特定工具进行转换。table构造器的语法从那时起几乎不变了，唯一的例外是Lua 3.1引入的：记录的key可以用上任意表达式了，比如`{[10*x+f(y)]=47}`。尤其是这一改动允许了key为任意的字符串了，包括保留字和带有空格的字符串。因此，`{function=1}`是无效的，因为`function`是一个保留字，但是`{[“function”]=1}`是有效的。从Lua 5.0开始，也可以自由的混合数组部分和记录部分了，因此没有必要再在table构造器里使用分号了。
 
 虽然table的语法演进了，但是table的语义得到完整保留：table依然是关联数组，可以存放任意键值对。但是，实践中经常使用的table要么是单纯的数组（连续的整型key）或者记录（字符串作为key）。因为table是Lua里唯一的数据结构机制，我们投入了大量的努力去实现table，让table在Lua的核心代码里高效运行。直到Lua 4.0为止，table都是作为纯哈希表实现的，所有的键值对都是显式存储的。在Lua 5.0版本我们引入了table的混合表示：每个table包含了一个哈希部分和一个数组部分，两个部分都可以是空的。Lua检测一个table是不是作为一个数组来使用，并自动将数字索引的值移动到数组部分，而非原本的存储在哈希部分。这种分裂只在底层实现层次进行；访问table域是透明的，即使是对虚拟机来说。table会自动根据内容使用两个部分。
 
-这个混合机制有两个优点。第一，访问整型key的操作会变得更快了，因为不再需要哈希。第二，更重要的是，数组部分只占原来哈希部分的一半大小，因为哈希部分需要同时存储key和value，而数组部分的key已经隐含在下标了。结果是，如果一个table是作为数组使用的，它的表现就像数组一样，只要它的整型key是密集分布的。而且，哈希部分没有内存或者时间的代价，因为作为数组使用时，哈希部分不存在。反过来说，如果table是作为记录使用而非数组，那么数组部分就是空的。这些节省下来的内存是重要的，因为对于Lua程序来说，创建大量小table是很常见的（比如用table来表示object）。Lua的table也能优雅的处理稀疏数组：语句’a={[1000000000]=1}’在哈希部分创建了一个键值对，而非一个10亿元素的数组。
+这个混合机制有两个优点。第一，访问整型key的操作会变得更快了，因为不再需要哈希。第二，更重要的是，数组部分只占原来哈希部分的一半大小，因为哈希部分需要同时存储key和value，而数组部分的key已经隐含在下标了。结果是，如果一个table是作为数组使用的，它的表现就像数组一样，只要它的整型key是密集分布的。而且，哈希部分没有内存或者时间的代价，因为作为数组使用时，哈希部分不存在。反过来说，如果table是作为记录使用而非数组，那么数组部分就是空的。这些节省下来的内存是重要的，因为对于Lua程序来说，创建大量小table是很常见的（比如用table来表示object）。Lua的table也能优雅的处理稀疏数组：语句`a={[1000000000]=1}`在哈希部分创建了一个键值对，而非一个10亿元素的数组。
 
 另一个打造高效table实现的原因，是我们可以使用table实现各种各样的任务。比如，在Lua 5.0版本里的标准库函数，从Lua 1.1开始就作为全局变量存在，现在移动到table中去了。最近，Lua 5.1带来了完整的包和模块系统，这些系统都是基于table实现的。
 
@@ -150,29 +154,29 @@ table扮演了Lua核心的一个突出角色。有两个场景我们直接用tab
 
 文本字符串的语法有一个有趣的演进过程。从Lua 1.1开始，一个文本串可以用单引号或者双引号来定义，也可以包含像C一样的转义序列。同时使用单引号和双引号来定义字符串，并且具有相同语义，在当时有点不寻常。（比如，在脚本语言的传统里，Perl是会展开双引号字符串里的变量的，而单引号字符串则保持不变）这两种引号表示方式允许字符串包含其中一种引号，而不需要使用转义符。但是任意文本的字符串还是需要转义符序列的。
 
-Lua 2.2引入了长字符串，传统编程语言所没有，却普遍存在于脚本语言的一项特性。长字符串可以有许多行，不需要解析其中的转义符序列；它们提供了一个灵活的方式，将任意文本作为字符串，不再需要担心其中的内容（是否需要转义符）。但是，要为长字符串定义一个好的语法，没有想象中的简单，尤其是它们会被用于包含任意的程序文本（其中可能包含其他的长字符串）。这让我们思考两个问题：长字符串应该如何结束，它们是否可以嵌套。直到Lua 5.0为止，长字符串都是被包含在一对匹配的’[[...]]’中，并且可以包含嵌套的长字符串。可惜，结束分隔符’]]’可以是有效Lua程序的一部分，以一种不平衡的方式出现：’a[b[i]]’，或者在其他上下文环境里，比如XML的’<[!CDATA[...]]>’。
+Lua 2.2引入了长字符串，传统编程语言所没有，却普遍存在于脚本语言的一项特性。长字符串可以有许多行，不需要解析其中的转义符序列；它们提供了一个灵活的方式，将任意文本作为字符串，不再需要担心其中的内容（是否需要转义符）。但是，要为长字符串定义一个好的语法，没有想象中的简单，尤其是它们会被用于包含任意的程序文本（其中可能包含其他的长字符串）。这让我们思考两个问题：长字符串应该如何结束，它们是否可以嵌套。直到Lua 5.0为止，长字符串都是被包含在一对匹配的`[[...]]`中，并且可以包含嵌套的长字符串。可惜，结束分隔符`]]`可以是有效Lua程序的一部分，以一种不平衡的方式出现：`a[b[i]]`，或者在其他上下文环境里，比如XML的`<[!CDATA[...]]>`。
 
-Lua 5.1引入了长字符串的新形式：用’[===[…]===]’包围文本，’=‘的数量可以是任意的（包括0）。这种新的长字符串不嵌套：一个长字符串遇到匹配数量的’=‘就会结束。不管怎么说，现在包裹任意文本变得更简单了，即使文本包含其他长字符串或者不匹配的’]=…=]’序列：只要使用适当数量的’=‘字符。
+Lua 5.1引入了长字符串的新形式：用`[===[…]===]`包围文本，`=`的数量可以是任意的（包括0）。这种新的长字符串不嵌套：一个长字符串遇到匹配数量的`=`就会结束。不管怎么说，现在包裹任意文本变得更简单了，即使文本包含其他长字符串或者不匹配的`]=…=]`序列：只要使用适当数量的`=`字符。
 
 ### 6.4     块注释
 
-Lua的注释是’—‘开始，到行尾结束。这是最简单的注释，非常有效。很多语言使用单行注释，不过它们用的符号不一样。使用’—'表示注释的语言包括Ada和Haskell。
+Lua的注释是`—`开始，到行尾结束。这是最简单的注释，非常有效。很多语言使用单行注释，不过它们用的符号不一样。使用`—`表示注释的语言包括Ada和Haskell。
 
-我们从未觉得需要多行注释，或者块注释，除非是作为关闭一块代码的快捷方式。使用什么语法永远是一个问题：使用C语言的熟悉的’/*...*/‘语法，或者其他语言的，都和Lua的单行注释格式不搭配。同样，块注释是否能嵌套也是一个问题，困扰着用户，并影响到词法分析器的复杂度。嵌套的块注释的场景，一般是程序员需要注释掉某些代码块。自然，它们希望代码块里的注释可以正确处理，这只有在块注释可以嵌套的情况下才能发生。
+我们从未觉得需要多行注释，或者块注释，除非是作为关闭一块代码的快捷方式。使用什么语法永远是一个问题：使用C语言的熟悉的`/*...*/`语法，或者其他语言的，都和Lua的单行注释格式不搭配。同样，块注释是否能嵌套也是一个问题，困扰着用户，并影响到词法分析器的复杂度。嵌套的块注释的场景，一般是程序员需要注释掉某些代码块。自然，它们希望代码块里的注释可以正确处理，这只有在块注释可以嵌套的情况下才能发生。
 
-ANSI C支持块注释，但是不允许嵌套。C程序员通常使用C预处理器的惯用法来关闭代码块：’#if 0 …#endif’。这种方式有清晰的优势，它可以优雅的处理好被关闭代码里的注释。带着同样的动机和启发，我们强调了关闭Lua代码块的需要——不是块注释的——通过在Lua 3.0引入类似C语言的pragma进行条件编译。尽管块注释可以用上条件编译，我们不觉得这是它的正确用法。在Lua 4.0的改造工作中，我们认为条件编译带来的词法器复杂度太大，不值得继续支持，同时对于用户来说，它的语义对于用户有一定复杂性，对于完整宏支持的设施也没有达成共识（参见第7章）。所以，Lua 4.0里我们去掉了条件编译的支持，Lua仍然没有支持块注释。
+ANSI C支持块注释，但是不允许嵌套。C程序员通常使用C预处理器的惯用法来关闭代码块：`#if 0 …#endif`。这种方式有清晰的优势，它可以优雅的处理好被关闭代码里的注释。带着同样的动机和启发，我们强调了关闭Lua代码块的需要——不是块注释的——通过在Lua 3.0引入类似C语言的pragma进行条件编译。尽管块注释可以用上条件编译，我们不觉得这是它的正确用法。在Lua 4.0的改造工作中，我们认为条件编译带来的词法器复杂度太大，不值得继续支持，同时对于用户来说，它的语义对于用户有一定复杂性，对于完整宏支持的设施也没有达成共识（参见第7章）。所以，Lua 4.0里我们去掉了条件编译的支持，Lua仍然没有支持块注释。
 
-块注释是在Lua 5.0才被最终引入的，形式是’—[[...]]’。因为他们故意模仿了长字符串（参见6.3）的语法，所以很容易修改词法器进行支持。这种相似性也帮助用户掌握概念和语法。块注释也可以被用于关闭代码：惯用法是在需要关闭代码的前后加上两行，分别包含’—[[‘和’—]]’。要打开代码，只需要在第一行添加一个’-‘：这两行便都变成单行注释。
+块注释是在Lua 5.0才被最终引入的，形式是`—[[...]]`。因为他们故意模仿了长字符串（参见6.3）的语法，所以很容易修改词法器进行支持。这种相似性也帮助用户掌握概念和语法。块注释也可以被用于关闭代码：惯用法是在需要关闭代码的前后加上两行，分别包含`—[[`和`—]]`。要打开代码，只需要在第一行添加一个`-`：这两行便都变成单行注释。
 
-像长字符串一样，块注释也可以嵌套，同样有长字符串所遇到的问题。特别是包含不平衡的’]]'有效的Lua代码，比如’a[b[i]]’，不能在Lua 5.0被可靠的注释掉。Lua 5.1长字符串的新语法也能用于块注释，形式是’—[===[…]===]’，这个问题因此得到简洁稳定的解决方案。
+像长字符串一样，块注释也可以嵌套，同样有长字符串所遇到的问题。特别是包含不平衡的`]]`有效的Lua代码，比如`a[b[i]]`，不能在Lua 5.0被可靠的注释掉。Lua 5.1长字符串的新语法也能用于块注释，形式是`—[===[…]===]`，这个问题因此得到简洁稳定的解决方案。
 
 ### 6.5     函数
 
 Lua里的函数一直是第一类对象。一个函数可以在运行时创建，通过编译和执行包含其定义的字符串实现。随着Lua 3.1引入的匿名函数和upvalue，程序员可以在运行时创建函数，不再需要从文本里编译了。
 
-Lua的函数无论是C或者Lua的，都没有声明。被调用时，他们会接受不定数量的参数：多余的参数会被丢掉，缺失的参数会被赋予nil值。（这吻合了多重赋值的语义）。C函数一直都能处理不同数量的参数。Lua 2.5介绍了可变参数类型Lua函数，标志是参数列表以’…’结尾（只在Lua 3.0出现的实验特性）。当一个变参函数被调用，对应’…'的参数将会收集到一个叫’arg’的table里。这种方式虽然很简单便捷，但是要把这些参数传给另一个函数，就需要解包这个table。因为程序员经常将参数传递给另一个函数，Lua 5.1允许’...'用于参数列表和赋值表达式的右值。这避免了没必要的创建’arg’ table。
+Lua的函数无论是C或者Lua的，都没有声明。被调用时，他们会接受不定数量的参数：多余的参数会被丢掉，缺失的参数会被赋予nil值。（这吻合了多重赋值的语义）。C函数一直都能处理不同数量的参数。Lua 2.5介绍了可变参数类型Lua函数，标志是参数列表以`…`结尾（只在Lua 3.0出现的实验特性）。当一个变参函数被调用，对应`…`的参数将会收集到一个叫`arg`的table里。这种方式虽然很简单便捷，但是要把这些参数传给另一个函数，就需要解包这个table。因为程序员经常将参数传递给另一个函数，Lua 5.1允许`...`用于参数列表和赋值表达式的右值。这避免了没必要的创建`arg` table。
 
-Lua执行的基本单位是代码块（chunk）；它只是一个语句序列。Lua的一个代码块就像其他语言的main程序：它可以包含函数定义和可执行代码。（实际上，一个函数定义就是可执行代码：一个赋值）同时，一个代码块和一个普通的Lua函数非常相似。比如，代码块和普通Lua函数一直有着同一类字节码。但是，在Lua 5.0之前，代码块需要一些内部的“魔法”来开始执行。Lua 2.2开始，代码块开始类似普通函数，那时候，作为未记录在文档的特性，函数外可以定义局部变量了（只在Lua 3.1变成了官方发布）。Lua 2.5允许代码块返回值。Lua 3.0代码块变成了内部的函数，只是他们在被编译后立即执行；他们不以函数形式暴露给用户层。最终，在Lua 5.0迈出了这一步，将代码块的加载和执行变成了两步，来为宿主程序员提供更好的控制性和错误报告。结果，Lua 5.0里代码块变成了日常无参数的匿名函数。Lua 5.1里代码块变成了匿名变参函数，因为可以在运行时进行值传递。这些值都可以透过新的'…'机制进行传递。
+Lua执行的基本单位是代码块（chunk）；它只是一个语句序列。Lua的一个代码块就像其他语言的main程序：它可以包含函数定义和可执行代码。（实际上，一个函数定义就是可执行代码：一个赋值）同时，一个代码块和一个普通的Lua函数非常相似。比如，代码块和普通Lua函数一直有着同一类字节码。但是，在Lua 5.0之前，代码块需要一些内部的“魔法”来开始执行。Lua 2.2开始，代码块开始类似普通函数，那时候，作为未记录在文档的特性，函数外可以定义局部变量了（只在Lua 3.1变成了官方发布）。Lua 2.5允许代码块返回值。Lua 3.0代码块变成了内部的函数，只是他们在被编译后立即执行；他们不以函数形式暴露给用户层。最终，在Lua 5.0迈出了这一步，将代码块的加载和执行变成了两步，来为宿主程序员提供更好的控制性和错误报告。结果，Lua 5.0里代码块变成了日常无参数的匿名函数。Lua 5.1里代码块变成了匿名变参函数，因为可以在运行时进行值传递。这些值都可以透过新的`…`机制进行传递。
 
 从别的角度看，代码块就像其他语言的模块一样：他们一般用来提供全局环境的函数和变量。最初，我们没想过Lua会用于大规模编程，所以我们不觉得需要显式的模块。而且，我们觉得table就足够应付模块的需要了。在Lua 5.0里，我们将所有标准库打包进table里了，以此说明table足够应付模块。这鼓励了其他人将库打包进table里，让共享库变得更为简单。我们现在觉得Lua可以用来大规模编程了，特别是在Lua 5.1带来了基于table的包系统和模块系统之后。
 
@@ -184,7 +188,7 @@ Lua执行的基本单位是代码块（chunk）；它只是一个语句序列。
 
 现在，有很多优化策略去避免使用堆来存储栈帧（e.g.,[21]），但它们全都需要编译器有中间表达方式，Lua编译器却没有。McDermott的基于栈的栈帧分配建议[36]，特别强调是针对解释器的，是我们所知唯一的不需要中间表示方式的代码生成。就像我们的实现一样【31】，他的提案将变量放在栈上，如果它们被嵌套的闭包使用又超出了词法域，就将它们移动到堆上。但是，他的提案假设环境是以关联表的方式组织的。所以，将一个环境移动到堆上，解释器只需要修正列表头部，所有的局部变量自动到堆上了。Lua使用真实的记录作为活跃记录，局部变量的访问转译成直接访问栈顶对应偏移地址，所以不能使用McDermott的方法。
 
-在很长一段时间里，这些困难一直困扰着我们，无法在Lua里引入嵌套的第一类函数，并实现全词法域支持。最终，在Lua 3.1里，我们接受了一个称为upvalue的妥协实现。在这个方案里，内部函数不能访问和修改运行时的外部变量，但可以访问函数创建时的变量。这些变量称为upvalue。upvalue的主要优势，在于可以简单的实现：所有局部变量在栈上；创建一个函数时，函数被打包在一个闭包之中，闭包包含了函数使用的外部变量的副本。换句话说，upvalue是外部变量的冻结值。为了避免误解，我们创建了新的语法来访问upvalue：’%varname’。这个语法清晰表明代码是在访问变量的冻结值，而不是变量本身。upvalue虽然不能修改，但依然非常有用。有需要的时候，我们可以使用table作为upvalue来模拟可变外部变量：尽管我们不能改变变量指向的table，我们仍可以改变table的域本身。这个特性在以下场景特别有用：匿名函数作为高阶函数的参数，用于table遍历和模式匹配。
+在很长一段时间里，这些困难一直困扰着我们，无法在Lua里引入嵌套的第一类函数，并实现全词法域支持。最终，在Lua 3.1里，我们接受了一个称为upvalue的妥协实现。在这个方案里，内部函数不能访问和修改运行时的外部变量，但可以访问函数创建时的变量。这些变量称为upvalue。upvalue的主要优势，在于可以简单的实现：所有局部变量在栈上；创建一个函数时，函数被打包在一个闭包之中，闭包包含了函数使用的外部变量的副本。换句话说，upvalue是外部变量的冻结值。为了避免误解，我们创建了新的语法来访问upvalue：`%varname`。这个语法清晰表明代码是在访问变量的冻结值，而不是变量本身。upvalue虽然不能修改，但依然非常有用。有需要的时候，我们可以使用table作为upvalue来模拟可变外部变量：尽管我们不能改变变量指向的table，我们仍可以改变table的域本身。这个特性在以下场景特别有用：匿名函数作为高阶函数的参数，用于table遍历和模式匹配。
 
 2000年12月，Roberto在他的书【27】的第一版手稿里写到”Lua通过upvalue提供了一种合适的词法作用域形式“。在2001年7月，John D. Ramsdell在邮件列表中争论到，“一门语言要么是词法作用域的，要么不是；在词法作用域前添加’合适的’这个形容词毫无意义”。那条消息促使我们寻找更好的解决方案，以及支持全词法域的方式。2001年10月，我们做出了了全词法域支持的初步实现，并发布到邮件列表中。构想是每个upvalue都是间接访问的，当变量在词法域的时候指向栈；在词法域结束的时候，会将变量值移到堆区，并将指针指向堆区。开放闭包（带有指向栈的upvalue）被保存在一个列表里，允许重定向和重用开放的upvalue。重用对于获得正确语义有其必要性。如果两个闭包，共享一个外部变量，各自有自身的upvalue，那么在词法域结束的时候，每个闭包都有自己的变量拷贝了，但正确的语义要求它们共享变量。为了保证重用，创建闭包的算法是这样做的：对于闭包使用的每个外部变量，首先搜索开放闭包的列表，如果发现一个upvalue指向同样的外部变量，就重用那个upvalue；否则，创建新的upvalue。
 
@@ -220,6 +224,7 @@ Edgar Toering，Lua社区的活跃成员，误解了我们对词法域的描述�
 
 最简单的继承是通过委托继承，Self率先引入这机制并被其他基于原型的语言所采用，比如NewtonScript和JavaScript。下面的代码展示了Lua 2.1里通过委托实现继承的一个实现。
 
+```lua
 function Index(a, i)
   if i == “parent” then
     return nil
@@ -232,16 +237,19 @@ function Index(a, i)
   end
 end
 setfallback(“index”, Index)
+```
 
 当访问一个table的缺失域（比如属性或者方法），就会触发索引的fallback。实现继承就是将索引的fallback指向一条向上的祖系链，并有可能再次触发fallback，直到遇到一个拥有指定域的table，或者这条链完结。
 
-在设置了索引fallback以后，以下代码会打印’red’，虽然’b’没有’color’域：
+在设置了索引fallback以后，以下代码会打印`red`，虽然`b`没有`color`域：
 
+```lua
 a=Window{x=100,y=200,color=“red”}
 b=Window{x=300,y=400,parent=a}
 print(b.color)
+```
 
-通过’parent’域进行委托，这过程中没有黑魔法或者硬编码。程序员拥有完整的自由：他们可以使用‘parent’或者其他名字，可以通过尝试一系列的父系函数实现多继承，诸如此类。我们没有硬编码任一行为的决定，引出了Lua的主要设计概念：元机制。我们提供了方法让用户可以编码他们需要的特性，以他们想要的方式实现，并只实现他们需要的特性，而非将语言本身塞满特性。
+通过`parent`域进行委托，这过程中没有黑魔法或者硬编码。程序员拥有完整的自由：他们可以使用`parent`或者其他名字，可以通过尝试一系列的父系函数实现多继承，诸如此类。我们没有硬编码任一行为的决定，引出了Lua的主要设计概念：元机制。我们提供了方法让用户可以编码他们需要的特性，以他们想要的方式实现，并只实现他们需要的特性，而非将语言本身塞满特性。
 
 Fallback机制极大扩展了Lua的表达能力。但是，fallback是全局的句柄：对于每个事件，只有一个函数可以被执行。结果就是，很难在一个程序里混合不同的继承机制，因为只有一个钩子来实现继承（只有索引fallback）。对于一个单一的开发组，基于自己的对象系统进行开发，这可能不是什么严重的问题，但是一个组尝试使用另一个组的代码，就会变成问题，因为他们的对象系统并不一定一致。不同机制的钩子可以串在一起，但是链式调用很慢，很复杂，充满错误，并且不礼貌。fallback链不鼓励代码共享和重用；实际上几乎没有人使用。这让使用第三方库变得很难。
 
@@ -249,12 +257,14 @@ Lua 2.1允许标记userdata。Lua 3.0我们将标记扩展到所有值，并用�
 
 标记方法机制工作的很好，一直存续到Lua 5.0为止，我们在Lua 5.0实现了元表和元方法来取代标记和标记方法。元表只是普通的Lua table，所以可以用Lua直接操作，不需要特殊函数。就像标记一样，元表可以用来表示userdata和table的用户定义类型：所有“同类”对象应该共享同一个元表。不像标记，元表和他们的内容会在所有引用消失后自动被回收掉。（相反，标记和标记方法会等到程序结束才会被回收。）元表的引入同时简化了实现：标记方法需要在Lua核心代码里添加特殊的私有表示方法，元表主要就是标准的table机制。
 
-下面的代码展示了Lua 5.0里，继承是如何实现的。index元方法取代了index标记，元表里则是用’__index’域来表示。代码通过将b的元表里的__index域指向a，实现了b继承a。（一般情况下，index元方法都是函数，但我们允许它设为table，以直接支持简单的委托继承。）
+下面的代码展示了Lua 5.0里，继承是如何实现的。index元方法取代了index标记，元表里则是用`__index`域来表示。代码通过将b的元表里的__index域指向a，实现了b继承a。（一般情况下，index元方法都是函数，但我们允许它设为table，以直接支持简单的委托继承。）
 
+```lua
 a=Window{x=100, y=200, color=“red”}
 b=Window{x=300, y=400}
 setmetatable(b, {__index = a})
 print(b.color) —>red
+```
 
 ### 6.9      C API
 
@@ -272,36 +282,46 @@ API一直是双向的，因为从Lua 1.0开始，我们就考虑了从C调用Lua
 
 我们花了好多时间才实现成现在这套API的样子。为了讨论API的演进，我们以等价于如下Lua函数的C代码进行说明：
 
+```lua
 function foo(t)
     return t.x
 end
+```
 
-换句话说，这个函数接受一个单参数，参数类型应该是table，并返回table里储存在’x’域的值。尽管很简单，这个例子足够说明API里的三个重要问题：如何获取参数，如何索引table，如何返回值。
+换句话说，这个函数接受一个单参数，参数类型应该是table，并返回table里储存在`x`域的值。尽管很简单，这个例子足够说明API里的三个重要问题：如何获取参数，如何索引table，如何返回值。
 
 在Lua 1.0里，foo函数的C代码如下：
 
+```c
 void foo_l(void) {
     lua_Object t = lua_getparam(1);
     lua_Object r = lua_getfield(t, “x”);
     lua_pushobject(r);
 }
+```
 
-注意，我们所索引的值是存储在字符串索引’x’，因为’t.x’是’t["x”]’的语法糖。而且所有的API都是以’lua_’(或者‘LUA_’)开头的，以此避免和其他C库的命名冲突。
+注意，我们所索引的值是存储在字符串索引`x`，因为`t.x`是`t["x”]`的语法糖。而且所有的API都是以`lua_`(或者`LUA_`)开头的，以此避免和其他C库的命名冲突。
 
-为了暴露这个C函数给Lua，并使用’foo’作为函数名，我们会这样做
+为了暴露这个C函数给Lua，并使用`foo`作为函数名，我们会这样做
 
+```c
 lua_register("foo”, foo_l);
+```
 
 之后，foo就能像普通Lua函数一样从C调用了：
 
+```lua
 t = {x = 200}
 print(foo(t))         —> 200
+```
 
 API的一个关键部件是lua_Object类型，定义如下：
 
+```c
 typedef struct Object *lua_Object;
+```
 
-简而言之，lua_Object是一个抽象类型，用于在C里表示Lua值。传递给C函数的参数，通过调用lua_getparam获得，这个函数会返回lua_Object。在上述例子里，我们调用一次lua_getparam来获得table，这个table应当是foo函数的第一个参数。（其余的参数会自动略过。）当table在C里变成可用的（作为lua_Object），我们就可以通过调用lua_getfield函数获取’x’域的值。这个值在C里也是表示为lua_Object，最后会通过lua_pushobject压栈，送回到Lua中去。
+简而言之，lua_Object是一个抽象类型，用于在C里表示Lua值。传递给C函数的参数，通过调用lua_getparam获得，这个函数会返回lua_Object。在上述例子里，我们调用一次lua_getparam来获得table，这个table应当是foo函数的第一个参数。（其余的参数会自动略过。）当table在C里变成可用的（作为lua_Object），我们就可以通过调用lua_getfield函数获取`x`域的值。这个值在C里也是表示为lua_Object，最后会通过lua_pushobject压栈，送回到Lua中去。
 
 栈也是API的另一个关键部件。它用来从C里传值给Lua。每个Lua类型都有对应的C版本push函数：number类型有lua_pushnumber，string类型有lua_pushstring，特殊值nil可以用lua_pushnil。也有允许C回传任意Lua值到Lua的lua_pushobject函数。当一个C函数返回，所有栈上的值都会返回给Lua，作为C函数的结果（Lua的函数可以返回多个值）。
 
@@ -313,7 +333,9 @@ Lua从来没有提供过这类引用计数函数。Lua 2.1之前，为了保证�
 
 更具体地说，Lua 2.1里，一个lua_Object不再是一个指向Lua内部数据结构的指针，而是一个内部数组的索引，这个内部数组存储了所有传给C的值：
 
+```c
 typedef unsigned int lua_Object;
+```
 
 这个改动让lua_Object的使用变得可靠了：当一个值在数组里，Lua就不会回收它。当C函数返回了，整个数组就被释放，并回收掉没有其他引用的函数所使用的值。（这个改动也给实现垃圾回收带来了更多的灵活性，因为它可以按需移动对象了；但是，我们没有这么做）
  
@@ -323,6 +345,7 @@ typedef unsigned int lua_Object;
 
 第二种情况更为微妙。存在内部数组的对象只有函数返回的时候才会被释放。如果函数使用了太多的值，就会发生数组越界，或者内存不足错误。比如，考虑以下的高阶迭代函数，会迭代调用函数并打印结果，直到调用返回nil：
 
+```c
 void l_loop(void) {
   lua_Object f = lua_getparam(1);
   for (;;) {
@@ -333,6 +356,7 @@ void l_loop(void) {
     printf(“%s\n”, lua_getstring(res));
   }
 }
+```
 
 这段代码的问题是，每个调用返回的字符串都不能回收，直到循环的底部（整个函数结束为止），因此有可能发生数组越界或者内存耗尽。这种错误很难追踪，因此Lua 2.1的实现设置了内部数组保存lua_Object的上限。Lua会报错：“C函数里太多对象”而非泛泛的“内存耗尽”错误，让错误变得容易跟踪，但没有完全避免这一问题。
 
@@ -340,9 +364,11 @@ void l_loop(void) {
 
 Lua 2.1还为API带来了其他改变。其中之一是引入了lua_getsubscript，允许使用任何值来索引table。这个函数没有显式参数：它从栈上取出table和key。老的lua_getfield被重定义为宏，以实现兼容：
 
+```c
 #define lua_getfield(o,f) \
     (lua_pushobject(o), lua_pushstring(f), \
      lua_getsubscript())
+```
 （C API的向后兼容性通常用宏来实现，只要代价可以接受。）
 
 除了上述修改，从语法上讲，API从Lua 1到Lua 2的变化是很少的。比如说，我们的说明函数foo可以直接用Lua 1.0的版本，在Lua 2.0依然可以运行。lua_Object的含义变了，lua_getfield用新的原语实现了，但对于普通用户来说，就好像没有变化一样。因此，API一直很稳定，持续到Lua 4.0版本。
@@ -353,17 +379,21 @@ Lua 4.0为C API带来了两个新颖的设计：支持多个Lua虚拟机和用�
 
 在Lua 4.0里，我们的foo函数可以改写如下：
 
-Int foo_l (lua_State *L) {
+```c
+int foo_l (lua_State *L) {
    lua_pushstring(L, “x”);
    lua_gettable(L, 1);
    return 1;
 }
+```
 
 第一个区别是函数签名：foo_l现在接受一个Lua虚拟机，用于接收操作数和返回函数返回值。在之前版本里，函数调用完毕后，所有残留在栈上的值都会返回Lua。现在，因为所有操作都使用栈，它可以包含除返回值外的中间值，所以函数需要告诉Lua，栈上到底有几个元素是返回值。另一个区别是，不再需要lua_getparam了，因为函数参数在函数开始时就在栈上，并可以透过他们的index直接访问，就好像其他栈上的值一样。
 
 最后的区别是lua_gettable的使用，这个函数用于替代lua_getsubscript，用于访问table里的域。lua_gettable接受一个栈索引（而不是一个Lua对象），索引指向所操作的table，从栈顶弹出key，并将结果压栈。该函数不改变table在栈中的位置，因为table经常重复索引。在函数foo_l里，lua_gettable使用的table在栈位置1，因为他是函数的第一个参数，key是字符串”x”，需要在调用lua_gettable之前压栈。这个函数调用将栈中的key，换成了对应的table里的值。所以，在lua_gettable之后，栈上有两个值：栈位置1的table，和栈位置2上key索引到的结果。这个C函数返回1，告诉Lua使用栈顶的值作为函数的唯一返回值。
 
 为了更清楚的说明新的API，这是我们循环例子的Lua 4.0实现：
+
+```c
 int l_loop (lua_State *L) {
   for (;;) {
     lua_pushvalue(L, 1);
@@ -374,6 +404,7 @@ int l_loop (lua_State *L) {
   }
   return 0;
 }
+```
 
 为了调用一个Lua函数，我们将它压到栈上，并压入其参数（上面的例子没有）。然后我们调用lua_call，告诉lua要从栈上获取多少个参数（因此隐式的表达了函数在栈上的位置），要在调用里获取多少个结果。在例子里，我们没有使用参数，期待一个结果。lua_call函数将函数和参数从栈上移除，并压入指定数目的结果。调用lua_pop会从栈上去掉一个返回值，让栈在循环开始时处在相同的位置。为方便起见，我们可以用正数索引栈，表示从底部开始的位置，或者负数来表示从栈顶开始的位置。在示例中，我们使用-1作为索引，让lua_isnil和lua_tostring从栈顶开始索引元素，该位置包含了函数调用的结果。
 
@@ -385,7 +416,7 @@ Lua 4.0多个虚拟机共存的可能性，导致了有关引用机制的意料�
 
 C API在向着完整性缓慢演进。从Lua 4.0开始，所有标准库函数都可以只使用C API来编写。在Lua 4.0之前，Lua有数目可观的内置函数（Lua 1.1有7个，Lua 3.2有35个），大部分可以使用C API编写，但因为追求速度，我们并没有这样做。有少量内置函数是不能用C API来编写的，因为C API并不完整。比如，Lua 3.2之前是不可能用C API来遍历table的内容的，尽管在Lua里可以使用内置函数next去实现。目前，C API也尚不完整，不是所有Lua能干的都可以用C API完成；比如，C API还缺少对Lua值进行算术运算的函数。我们计划下个版本解决这个问题。
 
-Chpater 6.10 userdata
+### 6.10    userdata
 从第一版开始，Lua的一个重要特性就是可以直接操作C数据，这个特性是通过提供userdata这种特殊Lua数据类型来实现的。这种能力是Lua可扩展性的基础。
 
 对于Lua程序来说，userdata类型在Lua的演进里从未改变：尽管是第一类值类型，userdata还是透明的类型，在Lua里唯一有效的操作就是相等性判断。其他针对userdata的操作（比如创建，探测，修改）都需要C函数提供。
@@ -416,17 +447,21 @@ Lua从刚开始的版本就支持一些反射设施。提供支持的主要原�
 
 比如，如果一个用户写了下面的代码：
 
+```lua
 T = @track{ y=9, x=10, id=“1992-34” }
+```
 
 我们希望可以检查到，track的确有一个域y，这个域就是一个数字。我们也希望可以校验出track没有外来的域（比如检查出打字输入错误）。为了完成这两个任务，我们需要访问到Lua值的类型，以及遍历一个table的机制，并访问所有键值对。
 
 Lua 1.0用两个函数完成äº所需的功能，这两个函数延续到今天：type和next。type函数返回一个描述给定值的类型的字符串（比如”number”, “nil”, “table”之类）。next函数接受一个table和一个键，并返回一个table里的“下一个”键（以任意顺序）。以next(t, nil)调用会返回“第一个”键。通过next函数，我们可以遍历一个table并处理所有的键值对。比如，下面的代码可以打印table t的所有键值对：
 
+```lua
 k = next(t, nil)
 while k do
     print(k, t[k])
     k = next(t,k)
 end
+```
 
 所有这些函数都有一个简单的实现：type检查给定值的内部标记，并返回对应的字符串；next根据内部table的表示，在table里寻找给定的key并访问下一个key。
 
@@ -481,7 +516,7 @@ Lua在游戏界的广泛使用是我们的惊喜收获。我们并没有为Lua�
 
 过程式数据文件：Lua的原始设计目标是提供威力强大的数据描述设施，这允许游戏使用Lua组织数据文件，替换特殊格式的文本数据文件，带来诸多益处，尤其是同源性和表达力。
 
-致谢
+## 致谢
 
 Lua是在大家的帮助下成长起来的。Tecgraf的所有人都以不同形式为Lua贡献——使用这门语言，讨论它，向Tecgraf以外传播它。特别鸣谢Marcelo Gattass，作为Tecgraf的主管，总是鼓励我们并给予我们完全的自由，去演进Lua这门语言和它的实现。Lua不再是Tecgraf的一个产品，但依然在PUC-Rio内开发，开发组属于2004年5月建成的LabLua实验室。
 
@@ -495,6 +530,125 @@ Lua是在大家的帮助下成长起来的。Tecgraf的所有人都以不同形�
 
 相关文献：
 
-
-
-
+[1] The computer language shootout benchmarks. http:
+//shootout.alioth.debian.org/.
+[2] Lua projects. http://www.lua.org/uses.html.
+[3] The MIT license. http://www.opensource.org/
+licenses/mit-license.html.
+[4] Timeline of programming languages. http://en.
+wikipedia.org/wiki/Timeline of programming
+languages.
+[5] Which language do you use for scripting in your game
+engine? http://www.gamedev.net/gdpolls/viewpoll.
+asp?ID=163, Sept. 2003.
+[6] Which is your favorite embeddable scripting language?
+http://www.gamedev.net/gdpolls/viewpoll.asp?
+ID=788, June 2006.
+[7] K. Beck. Extreme Programming Explained: Embrace
+Change. Addison-Wesley, 2000.
+[8] G. Bell, R. Carey, and C. Marrin. The Virtual Reality
+Modeling Language Specification—Version 2.0.
+http://www.vrml.org/VRML2.0/FINAL/, Aug. 1996.
+(ISO/IEC CD 14772).
+[9] J. Bentley. Programming pearls: associative arrays. Communications
+of the ACM, 28(6):570–576, 1985.
+[10] J. Bentley. Programming pearls: little languages. Communications
+of the ACM, 29(8):711–721, 1986.
+[11] C. Bruggeman, O. Waddell, and R. K. Dybvig. Representing
+control in the presence of one-shot continuations. In
+SIGPLAN Conference on Programming Language Design
+and Implementation, pages 99–107, 1996.
+[12] W. Celes, L. H. de Figueiredo, and M. Gattass. EDG: uma
+ferramenta para criac¸ ˜ao de interfaces gr´aficas interativas.
+In Proceedings of SIBGRAPI ’95 (Brazilian Symposium on
+Computer Graphics and Image Processing), pages 241–248,
+1995.
+[13] B. Davis, A. Beatty, K. Casey, D. Gregg, and J.Waldron. The
+case for virtual register machines. In Proceedings of the 2003
+Workshop on Interpreters, Virtual Machines and Emulators,
+pages 41–49. ACM Press, 2003.
+[14] L. H. de Figueiredo, W. Celes, and R. Ierusalimschy.
+Programming advanced control mechanisms with Lua
+coroutines. In Game Programming Gems 6, pages 357–369.
+Charles River Media, 2006.
+[15] L. H. de Figueiredo, R. Ierusalimschy, and W. Celes. The
+design and implementation of a language for extending
+applications. In Proceedings of XXI SEMISH (Brazilian
+Seminar on Software and Hardware), pages 273–284, 1994.
+[16] L. H. de Figueiredo, R. Ierusalimschy, and W. Celes. Lua:
+an extensible embedded language. Dr. Dobb’s Journal,
+21(12):26–33, Dec. 1996.
+[17] L. H. de Figueiredo, C. S. Souza, M. Gattass, and L. C. G.
+Coelho. Gerac¸ ˜ao de interfaces para captura de dados sobre
+desenhos. In Proceedings of SIBGRAPI ’92 (Brazilian
+Symposium on Computer Graphics and Image Processing),
+pages 169–175, 1992.
+[18] A. de Moura, N. Rodriguez, and R. Ierusalimschy. Coroutines
+in Lua. Journal of Universal Computer Science, 10(7):910–
+925, 2004.
+[19] A. L. de Moura and R. Ierusalimschy. Revisiting coroutines.
+MCC 15/04, PUC-Rio, 2004.
+[20] R. K. Dybvig. Three Implementation Models for Scheme.
+PhD thesis, Department of Computer Science, University
+of North Carolina at Chapel Hill, 1987. Technical Report
+#87-011.
+[21] M. Feeley and G. Lapalme. Closure generation based on
+viewing LAMBDA as EPSILON plus COMPILE. Journal of
+Computer Languages, 17(4):251–267, 1992.
+[22] T. G. Gorham and R. Ierusalimschy. Um sistema de
+depurac¸ ˜ao reflexivo para uma linguagem de extens˜ao.
+In Anais do I Simp´osio Brasileiro de Linguagens de
+Programac¸ ˜ao, pages 103–114, 1996.
+[23] T. Gutschmidt. Game Programming with Python, Lua, and
+Ruby. Premier Press, 2003.
+[24] M. Harmon. Building Lua into games. In Game Programming
+Gems 5, pages 115–128. Charles River Media, 2005.
+[25] J. Heiss. Lua Scripting f¨ur Spieleprogrammierer. Hit the
+Ground with Lua. Stefan Zerbst, Dec. 2005.
+[26] A. Hester, R. Borges, and R. Ierusalimschy. Building flexible
+and extensible web applications with Lua. Journal of
+Universal Computer Science, 4(9):748–762, 1998.
+[27] R. Ierusalimschy. Programming in Lua. Lua.org, 2003.
+[28] R. Ierusalimschy. Programming in Lua. Lua.org, 2nd edition,
+2006.
+[29] R. Ierusalimschy, W. Celes, L. H. de Figueiredo, and
+R. de Souza. Lua: uma linguagem para customizac¸ ˜ao de
+aplicac¸ ˜oes. In VII Simp´osio Brasileiro de Engenharia de
+Software — Caderno de Ferramentas, page 55, 1993.
+[30] R. Ierusalimschy, L. H. de Figueiredo, and W. Celes. Lua:
+an extensible extension language. Software: Practice &
+Experience, 26(6):635–652, 1996.
+[31] R. Ierusalimschy, L. H. de Figueiredo, and W. Celes. The
+implementation of Lua 5.0. Journal of Universal Computer
+Science, 11(7):1159–1176, 2005.
+[32] R. Ierusalimschy, L. H. de Figueiredo, and W. Celes. Lua 5.1
+Reference Manual. Lua.org, 2006.
+[33] K. Jung and A. Brown. Beginning Lua Programming. Wrox,
+2007.
+[34] L. Lamport. LATEX: A Document Preparation System.
+Addison-Wesley, 1986.
+[35] M. J. Lima and R. Ierusalimschy. Continuac¸ ˜oes em Lua.
+In VI Simp´osio Brasileiro de Linguagens de Programac¸ ˜ao,
+pages 218–232, June 2002.
+[36] D. McDermott. An efficient environment allocation scheme
+in an interpreter for a lexically-scoped LISP. In ACM
+conference on LISP and functional programming, pages 154–
+162, 1980.
+[37] I. Millington. Artificial Intelligence for Games. Morgan
+Kaufmann, 2006.
+[38] B. Mogilefsky. Lua in Grim Fandango. http://www.
+grimfandango.net/?page=articles&pagenumber=2,
+May 1999.
+[39] Open Software Foundation. OSF/Motif Programmer’s Guide.
+Prentice-Hall, Inc., 1991.
+[40] J. Ousterhout. Tcl: an embeddable command language. In
+Proc. of the Winter 1990 USENIX Technical Conference.
+USENIX Association, 1990.
+[41] D. Sanchez-Crespo. Core Techniques and Algorithms in
+Game Programming. New Riders Games, 2003.
+[42] P. Schuytema and M. Manyen. Game Development with Lua.
+Delmar Thomson Learning, 2005.
+[43] A. van Deursen, P. Klint, and J. Visser. Domain-specific
+languages: an annotated bibliography. SIGPLAN Notices,
+35(6):26–36, 2000.
+[44] A. Varanese. Game Scripting Mastery. Premier Press, 2002.
